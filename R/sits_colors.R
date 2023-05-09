@@ -18,6 +18,7 @@ sits_colors <- function() {
 #' @title Function to retrieve sits color value
 #' @name sits_color_value
 #' @author Gilberto Camara, \email{gilberto.camara@@inpe.br}
+#' @param name   Name of color to obtain values
 #' @description Returns a color value based on name
 #' @return              A color value used in sits
 #'
@@ -36,7 +37,7 @@ sits_color_value <- function(name) {
         nrow(col_tab) == 1,
         msg = "Class name not available in default sits color table"
     )
-    return(unnamed(col_tab$color))
+    return(unname(col_tab$color))
 }
 #' @title Function to show colors in SITS
 #' @name sits_colors_show
@@ -102,10 +103,10 @@ sits_colors_reset <- function() {
     # find the labels that exist in the color table
     labels_exist <- labels[labels %in% names_tb]
     # get the colors for the names that exist
-    colors <- purrr::map_chr(labels_exist, function(l){
+    colors <- purrr::map_chr(labels_exist, function(l) {
         col <- color_tb %>%
             dplyr::filter(.data[["name"]] == l) %>%
-            dplyr::pull(color)
+            dplyr::pull(.data[["color"]])
         return(col)
     })
     # get the names of the colors that exist in the SITS color table
@@ -126,12 +127,13 @@ sits_colors_reset <- function() {
     # are there any colors missing?
     if (!all(labels %in% names(colors))) {
         missing <- labels[!labels %in% names(colors)]
-        warning("missing colors for labels ",
-                paste(missing, collapse = ", ")
-        )
-        warning("using palette ", palette, " for missing colors")
-        # grDevices does not work with one color missing
-
+        if (.check_warnings()) {
+            warning("missing colors for labels ",
+                    paste(missing, collapse = ", ")
+            )
+            warning("using palette ", palette, " for missing colors")
+            # grDevices does not work with one color missing
+        }
         colors_pal <- grDevices::hcl.colors(
             n = max(2, length(missing)),
             palette = palette,
@@ -139,7 +141,7 @@ sits_colors_reset <- function() {
             rev = rev
         )
         # if there is only one color, get it
-        colors_pal <- colors_pal[1:length(missing)]
+        colors_pal <- colors_pal[seq_len(length(missing))]
         names(colors_pal) <- missing
         # put all colors together
         colors <- c(colors, colors_pal)
@@ -172,6 +174,7 @@ sits_colors_reset <- function() {
     color_tb <- tibble::add_column(color_tb,
                                 y = seq(0, n_colors - 1) %% n_rows_show,
                                 x = seq(0, n_colors - 1) %/% n_rows_show)
+    y_size <- 1.2
     g <- ggplot2::ggplot() +
          ggplot2::scale_x_continuous(name = "",
                                     breaks = NULL,
@@ -180,16 +183,19 @@ sits_colors_reset <- function() {
                                     breaks = NULL,
                                     expand = c(0, 0)) +
          ggplot2::geom_rect(data = color_tb,
-                           mapping = ggplot2::aes(xmin = x + 0.05,
-                                                  xmax = x + 0.95,
-                                                  ymin = y + 0.05,
-                                                  ymax = y + 0.95),
+                           mapping = ggplot2::aes(
+                               xmin = .data[["x"]] + 0.05,
+                               xmax = .data[["x"]] + 0.95,
+                               ymin = .data[["y"]] + 0.05,
+                               ymax = .data[["y"]] + y_size
+                           ),
                            fill = color_tb$color
         ) +
         ggplot2::geom_text(data = color_tb,
-                           mapping = ggplot2::aes(x = x + 0.5,
-                                                  y = y + 0.70,
-                                                  label = name),
+                           mapping = ggplot2::aes(
+                               x = .data[["x"]] + 0.5,
+                               y = .data[["y"]] + 0.8,
+                               label = .data[["name"]]),
                            colour = "grey15",
                            hjust = 0.5,
                            vjust = 1,
@@ -200,4 +206,3 @@ sits_colors_reset <- function() {
 
     return(g)
 }
-

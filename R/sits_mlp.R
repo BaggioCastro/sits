@@ -74,20 +74,22 @@
 #'     cube <- sits_cube(
 #'         source = "BDC",
 #'         collection = "MOD13Q1-6",
-#'         data_dir = data_dir,
-#'         delim = "_",
-#'         parse_info = c("X1", "tile", "band", "date")
+#'         data_dir = data_dir
 #'     )
 #'     # classify a data cube
-#'     probs_cube <- sits_classify(data = cube, ml_model = torch_model)
+#'     probs_cube <- sits_classify(
+#'         data = cube, ml_model = torch_model, output_dir = tempdir()
+#'     )
 #'     # plot the probability cube
 #'     plot(probs_cube)
 #'     # smooth the probability cube using Bayesian statistics
-#'     bayes_cube <- sits_smooth(probs_cube)
+#'     bayes_cube <- sits_smooth(probs_cube, output_dir = tempdir())
 #'     # plot the smoothed cube
 #'     plot(bayes_cube)
 #'     # label the probability cube
-#'     label_cube <- sits_label_classification(bayes_cube)
+#'     label_cube <- sits_label_classification(
+#'         bayes_cube, output_dir = tempdir()
+#'     )
 #'     # plot the labelled cube
 #'     plot(label_cube)
 #' }
@@ -193,7 +195,7 @@ sits_mlp <- function(samples = NULL,
             )
             # Remove the lines used for validation
             sel <- !train_samples$sample_id %in% test_samples$sample_id
-            train_samples <- train_samples[sel,]
+            train_samples <- train_samples[sel, ]
         }
         # Shuffle the data
         train_samples <- train_samples[sample(

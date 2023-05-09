@@ -82,9 +82,7 @@
 #' cube <- sits_cube(
 #'     source = "BDC",
 #'     collection = "MOD13Q1-6",
-#'     data_dir = data_dir,
-#'     delim = "_",
-#'     parse_info = c("X1", "tile", "band", "date")
+#'     data_dir = data_dir
 #' )
 #'
 #' # Generate a texture images with variance in NDVI images
@@ -111,8 +109,11 @@ sits_apply.sits <- function(data, ...) {
 
 #' @rdname sits_apply
 #' @export
-sits_apply.raster_cube <- function(data, ..., window_size = 3, memsize = 1,
-                                   multicores = 2, output_dir = getwd(),
+sits_apply.raster_cube <- function(data, ...,
+                                   window_size = 3,
+                                   memsize = 1,
+                                   multicores = 2,
+                                   output_dir,
                                    progress = TRUE) {
 
     # Check cube
@@ -139,7 +140,6 @@ sits_apply.raster_cube <- function(data, ..., window_size = 3, memsize = 1,
     # Overlapping pixels
     overlap <- ceiling(window_size / 2) - 1
     # Check minimum memory needed to process one block
-    # npaths = input(bands) + output(band)
     job_memsize <- .jobs_memsize(
         job_size = .block_size(block = block, overlap = overlap),
         npaths = length(in_bands) + 1,
@@ -149,12 +149,6 @@ sits_apply.raster_cube <- function(data, ..., window_size = 3, memsize = 1,
     multicores <- .jobs_max_multicores(
         job_memsize = job_memsize, memsize = memsize, multicores = multicores
     )
-    # # Update block parameter
-    # block <- .jobs_optimal_block(
-    #     job_memsize = job_memsize, block = block,
-    #     image_size = .tile_size(.tile(data)), memsize = memsize,
-    #     multicores = multicores
-    # )
     # Prepare parallelization
     .sits_parallel_start(workers = multicores, log = FALSE)
     on.exit(.sits_parallel_stop(), add = TRUE)

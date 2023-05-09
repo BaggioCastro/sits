@@ -61,16 +61,12 @@
     # compute prediction vector
     pred_labels <- names(int_labels[max.col(prediction)])
 
-    idx <- 1
-
     data_pred <- slider::slide2_dfr(
         data,
         seq_len(nrow(data)),
         function(row, row_n) {
-
             # get the timeline of the row
             timeline_row <- lubridate::as_date(row$time_series[[1]]$Index)
-
             # the timeline of the row may differ from the global timeline
             # when we are processing samples with different dates
             if (timeline_row[1] != timeline_global[1]) {
@@ -82,9 +78,9 @@
                     num_samples = nrow(row$time_series[[1]])
                 )
             }
-            idx_fst <- (row_n - 1)*(length(ref_dates_lst)) + 1
+            idx_fst <- (row_n - 1) * (length(ref_dates_lst)) + 1
             idx_lst <- idx_fst + length(ref_dates_lst) - 1
-            pred_row <- prediction[idx_fst:idx_lst,]
+            pred_row <- prediction[idx_fst:idx_lst, ]
             if (idx_lst == idx_fst)
                 pred_row <- matrix(
                     pred_row,
@@ -344,9 +340,9 @@
 
 .ts_start_date <- function(ts) {
     # TODO: create a utility function instead. See .by() function
-    .as_date(unname(tapply(
+    .as_date(unlist(unname(tapply(
         as.character(.ts_index(ts)), .ts_sample_id(ts), min, simplify = FALSE
-    )))
+    ))))
 }
 
 .ts_min_date <- function(ts) {
@@ -354,9 +350,9 @@
 }
 
 .ts_end_date <- function(ts) {
-    .as_date(unname(tapply(
+    .as_date(unlist(unname(tapply(
         as.character(.ts_index(ts)), .ts_sample_id(ts), max, simplify = FALSE
-    )))
+    ))))
 }
 
 .ts_max_date <- function(ts) {
@@ -429,18 +425,6 @@
 
 .sits_labels <- function(samples) {
     sort(unique(samples[["label"]]), na.last = TRUE)
-}
-
-.sits_filter_labels <- function(samples, labels) {
-    # Check missing labels
-    miss_labels <- labels[!labels %in% .sits_labels(samples)]
-    if (.has(miss_labels)) {
-        stop("label(s) ", .collapse("'", miss_labels, "'"), " not found")
-    }
-    # Filter labels
-    samples <- samples[samples[["label"]] %in% labels, ]
-    # Return samples
-    samples
 }
 
 .sits_foreach_ts <- function(samples, fn, ...) {
@@ -564,7 +548,7 @@
     if (all(.pred_cols %in% names(pred))) {
         pred[, seq_len(ncol(pred) - 2) + 2] <- value
     } else {
-        pred[,] <- value
+        pred[, ] <- value
     }
     pred
 }

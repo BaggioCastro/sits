@@ -17,20 +17,6 @@
 #' @keywords internal
 #' @noRd
 #' @export
-.raster_data_type.terra <- function(data_type, ...) {
-    return(data_type)
-}
-
-#' @keywords internal
-#' @noRd
-#' @export
-.raster_resampling.terra <- function(method, ...) {
-    return(method)
-}
-
-#' @keywords internal
-#' @noRd
-#' @export
 .raster_get_values.terra <- function(r_obj, ...) {
 
     # read values and close connection
@@ -60,20 +46,8 @@
 #' @keywords internal
 #' @noRd
 #' @export
-.raster_ext_as_sf.terra <- function(r_obj) {
-    suppressWarnings(
-        sf::st_as_sf(terra::as.polygons(
-            x = terra::ext(r_obj),
-            crs = terra::crs(r_obj)
-        ))
-    )
-}
-
-#' @keywords internal
-#' @noRd
-#' @export
 .raster_file_blocksize.terra <- function(r_obj) {
-        block_size <- c(terra::fileBlocksize(r_obj))
+        block_size <- c(terra::fileBlocksize(r_obj[[1]]))
         names(block_size) <- c("nrows", "ncols")
 
         return(block_size)
@@ -93,7 +67,7 @@
 #' @export
 .raster_open_rast.terra <- function(file, ...) {
     suppressWarnings(
-        terra::rast(x = path.expand(file), ...)
+        terra::rast(x = .file_normalize(file), ...)
     )
 }
 
@@ -397,14 +371,6 @@
         as.character(terra::crs(x = r_obj))
     )
 }
-#' @name .raster_sources.terra
-#' @keywords internal
-#' @noRd
-.raster_sources.terra <- function(r_obj, ...) {
-
-    sources <- terra::sources(r_obj)
-    return(sources)
-}
 
 #' @keywords internal
 #' @noRd
@@ -427,22 +393,4 @@
 #' @export
 .raster_row.terra <- function(r_obj, y) {
     terra::rowFromY(r_obj, y)
-}
-
-#' @keywords internal
-#' @noRd
-#' @export
-.raster_missing_value.terra <- function(file) {
-
-    gdal_info <- terra::describe(path.expand(file))
-    gdal_info <- gdal_info[grepl(pattern = "NoData Value=", x = gdal_info)]
-
-    nodata_value <- gsub(pattern = ".*NoData Value=",
-                         replacement = "",
-                         x = gdal_info)
-
-    if (length(nodata_value) == 0) {
-        return(NULL)
-    }
-    return(as.numeric(nodata_value))
 }

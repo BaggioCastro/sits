@@ -1,19 +1,18 @@
 
 #---- internal functions ----
 
-.label_tile  <- function(tile, band, label_fn, output_dir, version) {
+.label_tile  <- function(tile, band, label_fn, output_dir, version, progress) {
     # Output file
     out_file <- .file_derived_name(
         tile = tile, band = band, version = version, output_dir = output_dir
     )
     # Resume feature
     if (file.exists(out_file)) {
-        # # Callback final tile classification
-        # .callback(process = "tile_classification", event = "recovery",
-        #           context = environment())
-        message("Recovery: tile '", tile[["tile"]], "' already exists.")
-        message("(If you want to produce a new image, please ",
-                "change 'output_dir' or 'version' parameters)")
+        if (.check_messages()) {
+            message("Recovery: tile '", tile[["tile"]], "' already exists.")
+            message("(If you want to produce a new image, please ",
+                    "change 'output_dir' or 'version' parameters)")
+        }
         class_tile <- .tile_class_from_file(
             file = out_file, band = band, base_tile = tile
         )
@@ -63,7 +62,7 @@
         gc()
         # Returned value
         block_file
-    })
+    }, progress = progress)
     # Merge blocks into a new class_cube tile
     class_tile <- .tile_class_merge_blocks(
         file = out_file, band = band, labels = .tile_labels(tile),

@@ -39,53 +39,16 @@
     )
 }
 
-.gdal_buildvrt <- function(file, base_files, quiet) {
-    sf::gdal_utils(
-        util = "buildvrt", source = base_files,
-        destination = file, quiet = quiet
-    )
-}
-
 .gdal_addo <- function(base_file) {
     conf_cog <- .conf("gdal_presets", "cog")
     suppressMessages(
         sf::gdal_addo(
             file = base_file,
             method = conf_cog[["method"]],
-            overviews = conf_cog[["overviews"]]
+            overviews = conf_cog[["overviews"]],
+            options = c("GDAL_NUM_THREADS" = "2")
         )
     )
-}
-
-.gdal_template_from_file <- function(base_file, file, nlayers, miss_value,
-                                     data_type) {
-    # Convert to gdal data type
-    data_type <- .gdal_data_type[[data_type]]
-    # Output file
-    file <- .try({
-        .gdal_translate(
-            file = file,
-            base_file = base_file,
-            params = list(
-                "-ot" = data_type,
-                "-of" = .conf("gdal_presets", "image", "of"),
-                "-b" = rep(1, nlayers),
-                "-scale" = list(0, 1, miss_value, miss_value),
-                "-a_nodata" = miss_value,
-                "-co" = .conf("gdal_presets", "image", "co")
-            ),
-            quiet = TRUE
-        )
-    },
-    .rollback = {
-        unlink(file)
-    },
-    .finally = {
-        # Delete auxiliary files
-        unlink(paste0(file, ".aux.xml"))
-    })
-    # Return file
-    file
 }
 
 .gdal_template_block <- function(block, bbox, file, nlayers, miss_value,
@@ -157,17 +120,24 @@
     file
 }
 
-.gdal_crop_image <- function(file, out_file, roi, crs, as_crs, miss_value,
-                             multicores) {
+.gdal_crop_image <- function(file,
+                             out_file,
+                             roi_file,
+                             as_crs = NULL,
+                             miss_value = NULL,
+                             data_type,
+                             multicores = 1,
+                             overwrite = TRUE) {
     gdal_params <- list(
+        "-ot" = .gdal_data_type[[data_type]],
         "-of" = .conf("gdal_presets", "image", "of"),
         "-co" = .conf("gdal_presets", "image", "co"),
         "-wo" = paste0("NUM_THREADS=", multicores),
         "-multi" = TRUE,
-        "-s_srs" = crs,
         "-t_srs" = as_crs,
-        "-cutline" = roi,
-        "-srcnodata" = miss_value
+        "-cutline" = roi_file,
+        "-dstnodata" = miss_value,
+        "-overwrite" = overwrite
     )
     .gdal_warp(
         file = out_file, base_files = file,
@@ -176,16 +146,40 @@
     out_file
 }
 
+.gdal_scale <- function(file,
+                        out_file,
+                        src_min,
+                        src_max,
+                        dst_min,
+                        dst_max,
+                        miss_value,
+                        data_type) {
+    .gdal_translate(
+        file = out_file,
+        base_file = file,
+        params = list(
+            "-ot" = .gdal_data_type[[data_type]],
+            "-of" = .conf("gdal_presets", "image", "of"),
+            "-scale" = list(src_min, src_max, dst_min, dst_max),
+            "-a_nodata" = miss_value,
+            "-co" = .conf("gdal_presets", "image", "co")
+        ),
+        quiet = TRUE
+    )
+}
+
 .gdal_reproject_image <- function(file, out_file, crs, as_crs, miss_value,
-                                  multicores) {
+                                  data_type, multicores, overwrite = TRUE) {
     gdal_params <- list(
+        "-ot" = .gdal_data_type[[data_type]],
         "-of" = .conf("gdal_presets", "image", "of"),
         "-co" = .conf("gdal_presets", "image", "co"),
         "-wo" = paste0("NUM_THREADS=", multicores),
         "-multi" = TRUE,
         "-s_srs" = crs,
         "-t_srs" = as_crs,
-        "-srcnodata" = miss_value
+        "-srcnodata" = miss_value,
+        "-overwrite" = overwrite
     )
     .gdal_warp(
         file = out_file, base_files = file,

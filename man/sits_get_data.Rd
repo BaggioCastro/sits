@@ -8,6 +8,7 @@
 \alias{sits_get_data.sf}
 \alias{sits_get_data.sits}
 \alias{sits_get_data.data.frame}
+\alias{sits_get_data.segments}
 \title{Get time series from data cubes and cloud services}
 \usage{
 sits_get_data(
@@ -25,7 +26,6 @@ sits_get_data(
   pol_avg = FALSE,
   pol_id = NULL,
   multicores = 2,
-  output_dir = getwd(),
   progress = FALSE
 )
 
@@ -39,7 +39,6 @@ sits_get_data(
   crs = 4326,
   impute_fn = sits_impute_linear(),
   multicores = 2,
-  output_dir = getwd(),
   progress = FALSE
 )
 
@@ -57,7 +56,6 @@ sits_get_data(
   pol_avg = FALSE,
   pol_id = NULL,
   multicores = 2,
-  output_dir = ".",
   progress = FALSE
 )
 
@@ -75,7 +73,6 @@ sits_get_data(
   pol_avg = FALSE,
   pol_id = NULL,
   multicores = 2,
-  output_dir = ".",
   progress = FALSE
 )
 
@@ -86,7 +83,6 @@ sits_get_data(
   bands = sits_bands(cube),
   impute_fn = sits_impute_linear(),
   multicores = 2,
-  output_dir = ".",
   progress = FALSE
 )
 
@@ -101,7 +97,17 @@ sits_get_data(
   crs = 4326,
   impute_fn = sits_impute_linear(),
   multicores = 2,
-  output_dir = ".",
+  progress = FALSE
+)
+
+\method{sits_get_data}{segments}(
+  cube,
+  samples,
+  ...,
+  bands = sits_bands(cube),
+  impute_fn = sits_impute_linear(),
+  aggreg_fn = "median",
+  multicores = 2,
   progress = FALSE
 )
 }
@@ -143,11 +149,10 @@ as a polygon label.}
 
 \item{multicores}{Number of threads to process the time series.}
 
-\item{output_dir}{Directory where the time series will be saved as rds.
-Default is the current path.}
-
 \item{progress}{A logical value indicating if a progress bar
 should be shown. Default is \code{FALSE}.}
+
+\item{aggreg_fn}{Aggregation function to compute a summary of each segments}
 }
 \value{
 A tibble with the metadata and data for each time series
@@ -186,9 +191,7 @@ if (sits_run_examples()) {
     raster_cube <- sits_cube(
         source = "BDC",
         collection = "MOD13Q1-6",
-        data_dir = data_dir,
-        delim = "_",
-        parse_info = c("X1", "tile", "band", "date")
+        data_dir = data_dir
     )
     samples <- tibble::tibble(longitude = -55.66738, latitude = -11.76990)
     point_ndvi <- sits_get_data(raster_cube, samples)

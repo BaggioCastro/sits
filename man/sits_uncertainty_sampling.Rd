@@ -52,19 +52,22 @@ if (sits_run_examples()) {
     cube <- sits_cube(
         source = "BDC",
         collection = "MOD13Q1-6",
-        data_dir = data_dir,
-        delim = "_",
-        parse_info = c("X1", "tile", "band", "date")
+        data_dir = data_dir
     )
     # build a random forest model
     rfor_model <- sits_train(samples_modis_ndvi, ml_method = sits_rfor())
     # classify the cube
-    probs_cube <- sits_classify(data = cube, ml_model = rfor_model)
+    probs_cube <- sits_classify(
+        data = cube, ml_model = rfor_model, output_dir = tempdir()
+    )
     # create an uncertainty cube
-    uncert_cube <- sits_uncertainty(probs_cube)
+    uncert_cube <- sits_uncertainty(probs_cube,
+        type = "entropy",
+        output_dir = tempdir())
     # obtain a new set of samples for active learning
     # the samples are located in uncertain places
-    new_samples <- sits_uncertainty_sampling(uncert_cube)
+    new_samples <- sits_uncertainty_sampling(
+        uncert_cube, n = 10, min_uncert = 0.4)
 }
 
 }

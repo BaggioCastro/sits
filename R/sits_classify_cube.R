@@ -19,6 +19,7 @@
 #' @param  tile            Single tile of a data cube.
 #' @param  band            Band to be produced.
 #' @param  ml_model        Model trained by \code{\link[sits]{sits_train}}.
+#' @param  block           Optimized block to be read into memory.
 #' @param  roi             Region of interest.
 #' @param  filter_fn       Smoothing filter function to be applied to the data.
 #' @param  impute_fn       Impute function to replace NA.
@@ -28,8 +29,18 @@
 #' @param  progress        Show progress bar?
 #' @param  labels          labels
 #' @return List of the classified raster layers.
-.classify_tile  <- function(tile, band, ml_model, roi, filter_fn, impute_fn,
-                            output_dir, version, verbose, progress, labels) {
+.classify_tile  <- function(tile,
+                            band,
+                            ml_model,
+                            block,
+                            roi,
+                            filter_fn,
+                            impute_fn,
+                            output_dir,
+                            version,
+                            verbose,
+                            progress,
+                            labels) {
 
     # Output file
     out_file <- .file_derived_name(
@@ -37,15 +48,14 @@
     )
     # Resume feature
     if (file.exists(out_file)) {
-        # # Callback final tile classification
-        # .callback(process = "tile_classification", event = "recovery",
-        #           context = environment())
-        message("Recovery: tile '", tile[["tile"]], "' already exists.")
-        message("(If you want to produce a new image, please ",
-                "change 'output_dir' or 'version' parameters)")
+        if (.check_messages()) {
+            message("Recovery: tile '", tile[["tile"]], "' already exists.")
+            message("(If you want to produce a new image, please ",
+                    "change 'output_dir' or 'version' parameters)")
+        }
         probs_tile <- .tile_probs_from_file(
             file = out_file, band = band, base_tile = tile,
-            labels = .ml_labels(ml_model), update_bbox = TRUE
+            labels = labels, update_bbox = TRUE
         )
         return(probs_tile)
     }
@@ -59,14 +69,14 @@
                 tile[["tile"]], "' at ", tile_start_time)
     }
     # Create chunks as jobs
-    chunks <- .tile_chunks_create(tile = tile, overlap = 0)
+    chunks <- .tile_chunks_create(tile = tile, overlap = 0, block = block)
     # By default, update_bbox is FALSE
     update_bbox <- FALSE
     if (.has(roi)) {
         # How many chunks there are in tile?
         nchunks <- nrow(chunks)
         # Intersecting chunks with ROI
-        chunks <- .chunks_filter_spatial(chunks = chunks, roi = roi)
+        chunks <- .chunks_filter_spatial(chunks, roi = roi)
         # Should bbox of resulting tile be updated?
         update_bbox <- nrow(chunks) != nchunks
     }
@@ -76,7 +86,8 @@
         block <- .block(chunk)
         # Block file name
         block_file <- .file_block_name(
-            pattern = .file_pattern(out_file), block = block,
+            pattern = .file_pattern(out_file),
+            block = block,
             output_dir = output_dir
         )
         # Resume processing in case of failure
@@ -85,9 +96,16 @@
         }
         # Read and preprocess values
         values <- .classify_data_read(
-            tile = tile, block = block, ml_model = ml_model,
-            impute_fn = impute_fn, filter_fn = filter_fn
+            tile = tile,
+            block = block,
+            ml_model = ml_model,
+            impute_fn = impute_fn,
+            filter_fn = filter_fn
         )
+        # Get mask of NA pixels
+        na_mask <- C_mask_na(values)
+        # Fill with zeros remaining NA pixels
+        values <- C_fill_na(values, 0)
         # Used to check values (below)
         input_pixels <- nrow(values)
 
@@ -105,7 +123,6 @@
 
         # Are the results consistent with the data input?
         .check_processed_values(values, input_pixels)
-
 
         #
         # Log here
@@ -129,6 +146,8 @@
             values <- values / scale
         }
 
+        # Mask NA pixels
+        values[na_mask, ] <- NA
 
         #
         # Log here
@@ -142,8 +161,11 @@
 
         # Prepare and save results as raster
         .raster_write_block(
-            files = block_file, block = block, bbox = .bbox(chunk),
-            values = values, data_type = .data_type(band_conf),
+            files = block_file,
+            block = block,
+            bbox = .bbox(chunk),
+            values = values,
+            data_type = .data_type(band_conf),
             missing_value = .miss_value(band_conf),
             crop_block = NULL
         )
@@ -220,6 +242,8 @@
         if (.has(cloud_mask)) {
             values[cloud_mask] <- NA
         }
+
+
         # Remove NA pixels
         if (.has(impute_fn)) {
             values <- impute_fn(values)

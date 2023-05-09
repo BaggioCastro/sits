@@ -29,9 +29,9 @@ sits_mixture_model(
   endmembers,
   ...,
   rmse_band = TRUE,
-  memsize = 1,
+  memsize = 4,
   multicores = 2,
-  output_dir = getwd(),
+  output_dir,
   progress = TRUE
 )
 }
@@ -108,7 +108,7 @@ if (sits_run_examples()) {
 
    # Create the endmembers tibble
    em <- tibble::tribble(
-          ~type, ~B02, ~B03,   ~B04,  ~B8A,  ~B11,   ~B12,
+          ~class, ~B02, ~B03,   ~B04,  ~B8A,  ~B11,   ~B12,
        "forest", 0.02, 0.0352, 0.0189, 0.28,  0.134, 0.0546,
          "land", 0.04, 0.065,  0.07,   0.36,  0.35,  0.18,
         "water", 0.07, 0.11,   0.14,   0.085, 0.004, 0.0026

@@ -16,13 +16,18 @@
             call. = FALSE
         ))
     }
-
+    # Convert roi to bbox
+    lon <- stac_query$params$intersects$coordinates[,,1]
+    lat <- stac_query$params$intersects$coordinates[,,2]
+    stac_query$params$intersects <- NULL
+    stac_query$params$bbox <- c(min(lon), min(lat), max(lon), max(lat))
     # making the request
     items_info <- rstac::post_request(q = stac_query, ...)
     .check_stac_items(items_info)
     # if more than 2 times items pagination are found the progress bar
     # is displayed
-    progress <- rstac::items_matched(items_info) > 2 * .conf("rstac_pagination_limit")
+    progress <- rstac::items_matched(items_info) >
+        2 * .conf("rstac_pagination_limit")
     # check documentation mode
     progress <- .check_documentation(progress)
 

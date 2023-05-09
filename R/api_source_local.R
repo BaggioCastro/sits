@@ -4,6 +4,7 @@
                         collection,
                         data_dir,
                         parse_info,
+                        version,
                         delim,
                         tiles,
                         bands,
@@ -23,13 +24,22 @@
     } else {
         results_cube <- FALSE
     }
+
     # results cube should have only one band
     if (results_cube) {
         .check_that(
             length(bands) == 1,
             msg = "results cube should have only one band"
         )
+        # is label parameter was provided in labelled cubes?
+        if (bands %in% c("probs", "bayes", "class")) {
+            .check_chr(
+                labels, len_min = 1,
+                msg = "'labels' parameter should be provided."
+            )
+        }
     }
+
     # is parse info NULL? use the default
     if (purrr::is_null(parse_info)) {
         if (results_cube) {
@@ -69,6 +79,7 @@
     items <- .local_cube_items_new(
         data_dir = data_dir,
         parse_info = parse_info,
+        version = version,
         delim = delim,
         start_date = start_date,
         end_date = end_date,
@@ -139,7 +150,8 @@
 
     if (results_cube) {
         result_class <- .conf("sits_results_s3_class")[[bands]]
-        class(cube) <- c(result_class, "derived_cube", "raster_cube", class(cube))
+        class(cube) <- c(result_class, "derived_cube",
+                         "raster_cube", class(cube))
     } else {
         class(cube) <- .cube_s3class(cube)
     }
@@ -151,6 +163,7 @@
 #' @noRd
 .local_cube_items_new <- function(data_dir,
                                   parse_info,
+                                  version,
                                   delim,
                                   start_date,
                                   end_date,
@@ -223,8 +236,20 @@
             .name_repair = "universal"
         )
     )
+    if (!purrr::is_null(bands)) {
+        # check if bands exist
+        .check_chr_contains(x = items$band,
+                            contains = bands,
+                            discriminator = "all_of",
+                            msg = "Wrong bands specification - please correct")
+    }
     # get the information on the required bands, dates and path
     if (results_cube) {
+        # check required version exists
+        .check_chr_within(x = version,
+                          within = items$version,
+                          discriminator = "any_of",
+                          msg = "Wrong version specification - please correct")
         # get only the first band
         band <- bands[[1]]
         # get the information on the required band, dates and path
@@ -235,6 +260,8 @@
             dplyr::mutate(path = paste(data_dir, img_files_filt, sep = "/")) %>%
             # filter by the band
             dplyr::filter(.data[["band"]] == !!band) %>%
+            # filter by the version
+            dplyr::filter(.data[["version"]] == !!version) %>%
             # select the relevant parts
             dplyr::select(
                 "tile",

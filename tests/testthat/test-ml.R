@@ -67,6 +67,7 @@ test_that("SVM - Formula linear", {
 test_that("Random Forest", {
 
     rfor_model <- sits_train(samples_modis_ndvi, sits_rfor(num_trees = 200))
+    expect_equal(sits_bands(rfor_model), "NDVI")
     point_ndvi <- sits_select(point_mt_6bands, bands = "NDVI")
     point_class <- sits_classify(
         data = point_ndvi,
@@ -83,8 +84,8 @@ test_that("Random Forest", {
 
 test_that("Random Forest - Whittaker", {
 
-    samples_mt_whit <- sits_filter(samples_modis_ndvi, filter = sits_whittaker())
-    rfor_model <- sits_train(samples_mt_whit, sits_rfor(num_trees = 200))
+    samples_whit <- sits_filter(samples_modis_ndvi, filter = sits_whittaker())
+    rfor_model <- sits_train(samples_whit, sits_rfor(num_trees = 200))
     point_ndvi <- sits_select(point_mt_6bands, bands = "NDVI")
     point_whit <- sits_filter(point_ndvi, filter = sits_whittaker())
     point_class <- sits_classify(
@@ -152,6 +153,15 @@ test_that("DL-MLP", {
     expect_true(all(point_class$predicted[[1]]$class %in%
         sits_labels(samples_modis_ndvi)))
     expect_true(nrow(sits_show_prediction(point_class)) == 17)
+
+    mlp_model <- sits_model_export(model)
+    expect_equal(class(mlp_model), "luz_module_fitted")
+    expect_equal(mlp_model$ctx$hparams$num_pred, 12)
+    expect_equal(mlp_model$ctx$hparams$layers[1], 128)
+    expect_equal(mlp_model$ctx$hparams$layers[2], 128)
+    expect_equal(mlp_model$ctx$hparams$y_dim, 4)
+    stats <- .ml_stats(mlp_model)
+    expect_null(stats)
 })
 
 test_that("ResNet", {

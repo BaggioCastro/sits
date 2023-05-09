@@ -55,7 +55,7 @@ NULL
 #'   Returns \code{Date} or \code{NULL} if value is empty.
 #' @noRd
 .as_date <- function(x) {
-    .default(lubridate::as_date(unlist(x, recursive = FALSE)))
+    .default(lubridate::as_date(x))
 }
 
 #' @title Check if an input has a value or not. Any zero length
@@ -95,6 +95,10 @@ NULL
         return(x)
     }
     value
+}
+
+.dissolve <- function(x) {
+    unique(unlist(x, recursive = FALSE, use.names = FALSE))
 }
 
 #' @title Handling error
@@ -232,4 +236,28 @@ NULL
 
 .common_size <- function(...) {
     tibble::tibble(...)
+}
+
+.slice_dfr <- function(x, i) {
+    UseMethod(".slice_dfr", i)
+}
+
+#' @export
+.slice_dfr.logical <- function(x, i) {
+    .check_that(
+        length(i) == nrow(x) || length(i) == 1,
+        local_msg = paste("length must be 1 or", nrow(x)),
+        msg = "invalid logical subscript"
+    )
+    x[i, ]
+}
+
+#' @export
+.slice_dfr.numeric <- function(x, i) {
+    .check_that(
+        all(i <= nrow(x)),
+        local_msg = paste("indices must be less or equal than", nrow(x)),
+        msg = "invalid numeric subscript"
+    )
+    x[i, ]
 }

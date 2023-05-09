@@ -51,7 +51,8 @@
 #'                    "r2012", "r2013", "r2014", "r2015",
 #'                    "r2016", "r2017", "r2018", "d2019",
 #'                    "r2019", "d2020", "NoClass", "r2020",
-#'                    "Clouds2021", "d2021", "r2021")
+#'                    "Clouds2021", "d2021", "r2021"),
+#'         version = "v20220606"
 #'     )
 #'
 #'     # Open classification map
@@ -72,7 +73,7 @@
 #'         cube = ro_class,
 #'         mask = prodes2021,
 #'         rules = list(
-#'             "Old_Deforestation" = mask %in% c(
+#'             "Deforestation_Mask" = mask %in% c(
 #'                 "d2007", "d2008", "d2009",
 #'                 "d2010", "d2011", "d2012",
 #'                 "d2013", "d2014", "d2015",
@@ -83,28 +84,32 @@
 #'                 "d2019", "r2019", "d2020",
 #'                 "r2020", "r2021"
 #'             ),
-#'             "Water_Mask" = mask == "Water",
-#'             "NonForest_Mask" = mask %in% c("NonForest", "NonForest2")
+#'             "Water" = mask == "Water",
+#'             "NonForest" = mask %in% c("NonForest", "NonForest2")
 #'         ),
-#'         memsize = 1,
-#'         multicores = 1,
-#'         output_dir = getwd()
+#'         memsize = 4,
+#'         multicores = 2,
+#'         output_dir = tempdir(),
+#'         version = "v2"
 #'     )
 #'
-#'     plot(ro_mask, palette = "Geyser")
+#'     plot(ro_mask)
 #' }
 #' @rdname sits_reclassify
 #' @export
-sits_reclassify <- function(cube, mask, rules, memsize = 1, multicores = 2,
-                            output_dir = getwd(), version = "v1") {
+sits_reclassify <- function(cube,
+                            mask,
+                            rules,
+                            memsize = 4,
+                            multicores = 2,
+                            output_dir,
+                            version = "v1") {
 
     # Pre-conditions - Check parameters
     .check_cube_is_class_cube(cube)
     .check_cube_is_class_cube(mask)
     .check_memsize(memsize)
     .check_multicores(multicores)
-    # Expand output_dir path
-    output_dir <- path.expand(output_dir)
     .check_output_dir(output_dir)
     .check_version(version)
 
@@ -120,7 +125,9 @@ sits_reclassify <- function(cube, mask, rules, memsize = 1, multicores = 2,
     )
     # Update multicores parameter
     multicores <- .jobs_max_multicores(
-        job_memsize = job_memsize, memsize = memsize, multicores = multicores
+        job_memsize = job_memsize,
+        memsize = memsize,
+        multicores = multicores
     )
 
     # Prepare parallelization
@@ -132,8 +139,12 @@ sits_reclassify <- function(cube, mask, rules, memsize = 1, multicores = 2,
 
 #' @rdname sits_reclassify
 #' @export
-sits_reclassify.class_cube <- function(cube, mask, rules, memsize = 4,
-                                       multicores = 2, output_dir = getwd(),
+sits_reclassify.class_cube <- function(cube,
+                                       mask,
+                                       rules,
+                                       memsize = 4,
+                                       multicores = 2,
+                                       output_dir,
                                        version = "v1") {
     # Capture expression
     rules <- as.list(substitute(rules, environment()))[-1]
@@ -141,8 +152,9 @@ sits_reclassify.class_cube <- function(cube, mask, rules, memsize = 4,
     # Reclassify parameters checked in reclassify function
     # Create reclassification function
     reclassify_fn <- .reclassify_fn_expr(
-        rules = rules, labels_cube = .tile_labels(cube),
-        labels_mask = .tile_labels(mask)
+        rules = rules,
+        labels_cube = .cube_labels(cube),
+        labels_mask = .cube_labels(mask)
     )
     # Filter mask - bands
     mask <- .cube_filter_bands(cube = mask, bands = "class")
@@ -150,16 +162,20 @@ sits_reclassify.class_cube <- function(cube, mask, rules, memsize = 4,
     class_cube <- .cube_foreach_tile(cube, function(tile, mask) {
         # Filter mask - spatial
         mask <- .try({
-            .cube_filter_spatial(cube = mask, roi = .bbox(tile))
+            .cube_filter_spatial(cube = mask, roi = .tile_bbox(tile))
         },
         .msg_error = "mask's roi does not intersect cube"
         )
         # Get output labels
-        labels <- unique(c(.tile_labels(cube), names(rules)))
+        labels <- unique(c(.cube_labels(cube), names(rules)))
         # Classify the data
         class_tile <- .reclassify_tile(
-            tile = tile, mask = mask, band = "class", labels = labels,
-            reclassify_fn = reclassify_fn, output_dir = output_dir,
+            tile = tile,
+            mask = mask,
+            band = "class",
+            labels = labels,
+            reclassify_fn = reclassify_fn,
+            output_dir = output_dir,
             version = version
         )
         return(class_tile)

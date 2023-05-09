@@ -35,9 +35,9 @@ sits_classify(
   end_date = NULL,
   memsize = 8,
   multicores = 2,
-  output_dir = getwd(),
+  output_dir,
   version = "v1",
-  verbose = TRUE,
+  verbose = FALSE,
   progress = TRUE
 )
 }
@@ -124,7 +124,9 @@ if (sits_run_examples()) {
 
     # classify the point
     point_ndvi <- sits_select(point_mt_6bands, bands = c("NDVI"))
-    point_class <- sits_classify(point_ndvi, rf_model)
+    point_class <- sits_classify(
+        data = point_ndvi, ml_model = rf_model
+    )
     plot(point_class)
 
     # Example of classification of a data cube
@@ -133,14 +135,16 @@ if (sits_run_examples()) {
     cube <- sits_cube(
         source = "BDC",
         collection = "MOD13Q1-6",
-        data_dir = data_dir,
-        delim = "_",
-        parse_info = c("X1", "tile", "band", "date")
+        data_dir = data_dir
     )
     # classify a data cube
-    probs_cube <- sits_classify(data = cube, ml_model = rf_model)
+    probs_cube <- sits_classify(
+        data = cube, ml_model = rf_model, output_dir = tempdir()
+    )
     # label the probability cube
-    label_cube <- sits_label_classification(probs_cube)
+    label_cube <- sits_label_classification(
+        probs_cube, output_dir = tempdir()
+    )
     # plot the classified image
     plot(label_cube)
 }

@@ -16,7 +16,7 @@ sits_apply(data, ...)
   window_size = 3,
   memsize = 1,
   multicores = 2,
-  output_dir = getwd(),
+  output_dir,
   progress = TRUE
 )
 }
@@ -105,9 +105,7 @@ data_dir <- system.file("extdata/raster/mod13q1", package = "sits")
 cube <- sits_cube(
     source = "BDC",
     collection = "MOD13Q1-6",
-    data_dir = data_dir,
-    delim = "_",
-    parse_info = c("X1", "tile", "band", "date")
+    data_dir = data_dir
 )
 
 # Generate a texture images with variance in NDVI images

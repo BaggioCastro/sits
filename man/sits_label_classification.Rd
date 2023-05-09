@@ -9,16 +9,18 @@ sits_label_classification(
   cube,
   memsize = 4,
   multicores = 2,
-  output_dir = getwd(),
-  version = "v1"
+  output_dir,
+  version = "v1",
+  progress = TRUE
 )
 
 \method{sits_label_classification}{probs_cube}(
   cube,
   memsize = 4,
   multicores = 2,
-  output_dir = getwd(),
-  version = "v1"
+  output_dir,
+  version = "v1",
+  progress = TRUE
 )
 }
 \arguments{
@@ -34,6 +36,8 @@ parallel.}
 
 \item{version}{Version of resulting image
 (in the case of multiple runs).}
+
+\item{progress}{Show progress bar?}
 }
 \value{
 A data cube with an image with the classified map.
@@ -55,20 +59,22 @@ if (sits_run_examples()) {
     cube <- sits_cube(
         source = "BDC",
         collection = "MOD13Q1-6",
-        data_dir = data_dir,
-        delim = "_",
-        parse_info = c("X1", "tile", "band", "date")
+        data_dir = data_dir
     )
     # classify a data cube
-    probs_cube <- sits_classify(data = cube, ml_model = rfor_model)
+    probs_cube <- sits_classify(
+        data = cube, ml_model = rfor_model, output_dir = tempdir()
+    )
     # plot the probability cube
     plot(probs_cube)
     # smooth the probability cube using Bayesian statistics
-    bayes_cube <- sits_smooth(probs_cube)
+    bayes_cube <- sits_smooth(probs_cube, output_dir = tempdir())
     # plot the smoothed cube
     plot(bayes_cube)
     # label the probability cube
-    label_cube <- sits_label_classification(bayes_cube)
+    label_cube <- sits_label_classification(
+        bayes_cube, output_dir = tempdir()
+    )
     # plot the labelled cube
     plot(label_cube)
 }

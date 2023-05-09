@@ -31,11 +31,12 @@
             .add = TRUE
         )
 
-        x <- dplyr::arrange(
-            x, .data[["cloud_cover"]],
-            .by_group = TRUE
-        )
-
+        if ("cloud_cover" %in% names(x)) {
+            x <- dplyr::arrange(
+                x, .data[["cloud_cover"]],
+                .by_group = TRUE
+            )
+        }
         x <- dplyr::select(dplyr::ungroup(x), -"interval")
 
         return(x)
@@ -80,10 +81,10 @@
     .check_has_one_tile(tile)
 
     # get bbox roi
-    bbox_roi <- sits_bbox(tile)
-    if (!is.null(roi)) {
-        bbox_roi <- .roi_bbox(roi, tile)
-    }
+    if (!is.null(roi))
+        bbox_roi <- .bbox(roi, as_crs = .tile_crs(tile))
+    else
+        bbox_roi <- .tile_bbox(tile)
 
     # create a gdalcubes extent
     extent <- list(
@@ -116,27 +117,29 @@
 #' @keywords internal
 #' @noRd
 #'
-#' @param cube  Data cube.
+#' @param tile  A cube tile.
 #'
 #' @return      \code{gdalcubes::image_mask} with information about mask band.
-.gc_create_cloud_mask <- function(cube) {
-
+.gc_create_cloud_mask <- function(tile) {
     # set caller to show in errors
     .check_set_caller(".gc_create_cloud_mask")
 
+    if (!.tile_contains_cloud(tile)) {
+        return(NULL)
+    }
     # create a image mask object
     mask_values <- gdalcubes::image_mask(
         band = .source_cloud(),
         values = .source_cloud_interp_values(
-            source = .cube_source(cube = cube),
-            collection = .cube_collection(cube = cube)
+            source = .cube_source(cube = tile),
+            collection = .cube_collection(cube = tile)
         )
     )
 
     # is this a bit mask cloud?
     if (.source_cloud_bit_mask(
-        source = .cube_source(cube = cube),
-        collection = .cube_collection(cube = cube)
+        source = .cube_source(cube = tile),
+        collection = .cube_collection(cube = tile)
     )) {
         mask_values <- list(
             band = .source_cloud(),
@@ -458,6 +461,7 @@
 #' @param roi        A named \code{numeric} vector with a region of interest.
 #' @param multicores Number of cores used for regularization.
 #' @param progress   Show progress bar?
+#' @param ...        Additional parameters for httr package.
 #'
 #' @return             Data cube with aggregated images.
 .gc_regularize <- function(cube,
@@ -475,12 +479,9 @@
     .check_require_packages("gdalcubes")
 
     # filter only intersecting tiles
-    intersects <- slider::slide_lgl(
-        cube, .raster_sub_image_intersects, roi
-    )
-
-    # retrieve only intersecting tiles
-    cube <- cube[intersects, ]
+    if (.has(roi)) {
+        cube <- .cube_filter_spatial(cube, roi = roi)
+    }
 
     # timeline of intersection
     timeline <- .gc_get_valid_timeline(cube, period = period)
@@ -491,9 +492,6 @@
         timeline = timeline,
         period = period
     )
-
-    # each process will start two threads
-    multicores <- max(1, round(multicores / 2))
 
     # start processes
     .sits_parallel_start(workers = multicores, log = FALSE)
@@ -506,7 +504,6 @@
                 source = .cube_source(cube),
                 collection = .cube_collection(cube),
                 data_dir = output_dir,
-                parse_info = c("X1", "tile", "band", "date"),
                 multicores = multicores,
                 progress = progress
             )
@@ -577,11 +574,15 @@
                 cube_view = cube_view,
                 path_db = path_db,
                 band = band,
-                mask_band = .gc_create_cloud_mask(cube = tile)
+                mask_band = .gc_create_cloud_mask(tile)
             )
 
             # files prefix
-            prefix <- paste("cube", .cube_tiles(tile), band, "", sep = "_")
+            prefix <- paste(tile[["satellite"]],
+                            tile[["sensor"]],
+                            .cube_tiles(tile),
+                            band, "",
+                            sep = "_")
 
             # check documentation mode
             progress <- .check_documentation(progress)
@@ -613,7 +614,6 @@
                     source = .cube_source(cube),
                     collection = .cube_collection(cube),
                     data_dir = output_dir,
-                    parse_info = c("X1", "tile", "band", "date"),
                     multicores = multicores,
                     progress = FALSE
                 )

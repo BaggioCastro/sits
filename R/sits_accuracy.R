@@ -57,7 +57,9 @@
 #'     train_data <- sits_sample(samples_modis_ndvi, n = 200)
 #'     test_data <- sits_sample(samples_modis_ndvi, n = 200)
 #'     rfor_model <- sits_train(train_data, sits_rfor())
-#'     points_class <- sits_classify(test_data, rfor_model)
+#'     points_class <- sits_classify(
+#'         data = test_data, ml_model = rfor_model
+#'     )
 #'     acc <- sits_accuracy(points_class)
 #'
 #'     # show accuracy for a data cube classification
@@ -68,14 +70,16 @@
 #'     cube <- sits_cube(
 #'         source = "BDC",
 #'         collection = "MOD13Q1-6",
-#'         data_dir = data_dir,
-#'         delim = "_",
-#'         parse_info = c("X1", "tile", "band", "date")
+#'         data_dir = data_dir
 #'     )
 #'     # classify a data cube
-#'     probs_cube <- sits_classify(data = cube, ml_model = rfor_model)
+#'     probs_cube <- sits_classify(
+#'         data = cube, ml_model = rfor_model, output_dir = tempdir()
+#'     )
 #'     # label the probability cube
-#'     label_cube <- sits_label_classification(probs_cube)
+#'     label_cube <- sits_label_classification(
+#'         probs_cube, output_dir = tempdir()
+#'     )
 #'     # obtain the ground truth for accuracy assessment
 #'     ground_truth <- system.file("extdata/samples/samples_sinop_crop.csv",
 #'         package = "sits"
@@ -132,8 +136,10 @@ sits_accuracy.class_cube <- function(data, validation = NULL, ...,
                                      validation_csv = NULL) {
 
     if (!purrr::is_null(validation_csv)) {
-        warning("validation_csv parameter is deprecated since sits 1.3.
-                please use only validation")
+        if (.check_warnings())
+            warning("validation_csv parameter is deprecated since sits 1.3.
+                please use only validation"
+            )
         validation <- validation_csv
     }
     .check_null(validation,
@@ -149,9 +155,9 @@ sits_accuracy.class_cube <- function(data, validation = NULL, ...,
                     stringsAsFactors = FALSE
                 )
             )
-        }
-        else
+        } else {
             stop("Invalid validation parameter for sits_accuracy")
+        }
     }
     # Precondition - check if validation samples are OK
     .check_samples(validation)
@@ -265,6 +271,7 @@ sits_accuracy.class_cube <- function(data, validation = NULL, ...,
     freq <- do.call(rbind, freq_lst)
     # summarize the counts for each label
     freq <- freq %>%
+        dplyr::filter(!is.na(class)) %>%
         dplyr::group_by(class) %>%
         dplyr::summarise(area = sum(.data[["area"]]))
 
@@ -409,8 +416,6 @@ sits_accuracy_summary <- function(x,
 
     # set caller to show in errors
     .check_set_caller("sits_accuracy_summary")
-    # is data of class sits_accuracy
-    .check_is_sits_accuracy(x)
 
     if ("sits_area_accuracy" %in% class(x)) {
         print.sits_area_accuracy(x)
